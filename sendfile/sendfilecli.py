@@ -78,6 +78,3 @@ print "Sent ", numSent, " bytes."
 # Close the socket and the file
 connSock.close()
 fileObj.close()
-	
-
-

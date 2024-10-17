@@ -6,18 +6,17 @@
 # *****************************************************
 
 import socket
+import os
+from ephemeral import get_ephemeral_port
 
-# The port on which to listen
-listenPort = 1234
+# Control channel port
+controlPort = 1234
+# Create and bind control socket
+controlSocket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+controlSocket.bind( ( '', controlPort ) )
+controlSocket.listen(1)    # Listen for client connections
 
-# Create a welcome socket. 
-welcomeSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Bind the socket to the port
-welcomeSock.bind(('', listenPort))
-
-# Start listening on the socket
-welcomeSock.listen(1)
+print( f"FTP server is listening on port {controlPort}" )
 
 # ************************************************
 # Receives the specified number of bytes
@@ -27,11 +26,8 @@ welcomeSock.listen(1)
 # @return - the bytes received
 # *************************************************
 def recvAll(sock, numBytes):
-
-	# The buffer
+	# Receive all bytes from a socket
 	recvBuff = ""
-	
-	# The temporary buffer
 	tmpBuff = ""
 	
 	# Keep receiving till all is received
@@ -51,44 +47,75 @@ def recvAll(sock, numBytes):
 		
 # Accept connections forever
 while True:
-	
-	print "Waiting for connections..."
+	print("Waiting for connections...")
+	clientSocket, addr = controlSocket.accept()   # Accept connections
+	print("Accepted connection from client: "), addr
+	print("\n")
+
+	while True:
+		command = clientSocket.recv( 1024 ).decode().strip()    # Receive FTP command
+		if not command:
+			break   # Cleint disconnected
 		
-	# Accept connections
-	clientSock, addr = welcomeSock.accept()
-	
-	print "Accepted connection from client: ", addr
-	print "\n"
-	
-	# The buffer to all data received from the
-	# the client.
-	fileData = ""
-	
-	# The temporary buffer to store the received
-	# data.
-	recvBuff = ""
-	
-	# The size of the incoming file
-	fileSize = 0	
-	
-	# The buffer containing the file size
-	fileSizeBuff = ""
-	
-	# Receive the first 10 bytes indicating the
-	# size of the file
-	fileSizeBuff = recvAll(clientSock, 10)
+		print( f"Received command: { command }" )
 		
-	# Get the file size
-	fileSize = int(fileSizeBuff)
-	
-	print "The file size is ", fileSize
-	
-	# Get the file data
-	fileData = recvAll(clientSock, fileSize)
-	
-	print "The file data is: "
-	print fileData
+		if command == 'ls':
+			# List all files in the directory
+			files = '\n'.join( os.listdir( '.' ) )
+			clientSocket.send( files.encode() )
+			
+		elif command.startswith( "get" ):
+			filename = command.split()[1] # extract filename
+			if os.path.exists( filename ):
+				# Generate ephemeral port for the data channel
+				dataPort = get_ephemeral_port()
+				clientSocket.send( str( dataPort ).encode() )	# Send port to client
+				
+				# Open data channel
+				dataSocket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+				dataSocket.bind( ( '', dataPort ) )
+				dataSocket.listen(1)
+				dataConn, _ = dataSocket.accept()
+				
+				# Send file over data channel
+				with open( filename, 'rb' ) as f:
+					dataConn.sendfile(f)
+					
+				dataConn.close()    # Close data connection
+				dataSocket.close()
+				print( f"Sent { filename } to client" )
+			else:
+				clientSocket.send( b"ERROR: File not found" )
 		
-	# Close our side
-	clientSock.close()
+		elif command.startswith( 'put' ):
+			filename = command.split()[1]	# Extract filename
+			
+			# Generate ephemeral port for receiving data
+			dataPort = get_ephemeral_port()
+			clientSocket.send( str( dataPort ).encode() )	# Send port to clinet
+
+			# Open data channel
+			dataSocket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+			dataSocket.bind( ( '', dataPort ) )
+			dataSocket.listen(1)
+			dataConn, _ = dataSocket.accept()
+
+			# Receive file over data channel
+			with open( filename, 'wb' ) as f:
+				while True:
+					data = dataConn.recv( 1024 )
+					if not data:
+						break
+					f.write( data )
+			
+			dataConn.close()
+			dataSocket.close()
+			print( f"Received { filename } from client" )
+
+		elif command == "quit":
+			print( "Closeing connection with client" )
+			clientSocket.close()
+			break
+
+	print( "Waiting for new connection" )
 	
