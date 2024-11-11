@@ -7,7 +7,7 @@
 
 import socket
 import os
-from ephemeral import get_ephemeral_port
+from sendfile.ephemeral import get_ephemeral_port
 
 # Control channel port
 controlPort = 1234
@@ -49,7 +49,7 @@ def recvAll(sock, numBytes):
 while True:
 	print("Waiting for connections...")
 	clientSocket, addr = controlSocket.accept()   # Accept connections
-	print("Accepted connection from client: "), addr
+	print("Accepted connection from client: ", addr)
 	print("\n")
 
 	while True:

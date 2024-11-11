@@ -1,80 +1,103 @@
+# *****************************************************
+# This file implements a client for sending and receiving
+# files to/from the sendfileserv.py server. The client
+# can upload, download, and list files on the server.
+# *****************************************************
 
-# *******************************************************************
-# This file illustrates how to send a file using an
-# application-level protocol where the first 10 bytes
-# of the message from client to server contain the file
-# size and the rest contain the file data.
-# *******************************************************************
 import socket
-import os
 import sys
+import os
 
-# Command line checks 
-if len(sys.argv) < 2:
-	print "USAGE python " + sys.argv[0] + " <FILE NAME>" 
+# Validate command-line arguments
+if len(sys.argv) != 3:
+    print("Usage: py cli.py <server machine> <server port>")
+    sys.exit(1)
 
-# Server address
-serverAddr = "localhost"
+# Set server details
+serverName = sys.argv[1]
+controlPort = int(sys.argv[2])
 
-# Server port
-serverPort = 1234
+# Connect to the server's control channel
+controlSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+controlSocket.connect((serverName, controlPort))
+print(f"Connected to the FTP server at {serverName} on port {controlPort}")
 
-# The name of the file
-fileName = sys.argv[1]
+def sendCommand(command):
+    """Send a command to the server and receive the response."""
+    controlSocket.send(command.encode())
+    response = controlSocket.recv(1024).decode().strip()
+    return response
 
-# Open the file
-fileObj = open(fileName, "r")
+def handleDataChannel(dataPort, is_download, filename):
+    """Handle the data channel for file transfer."""
+    # Open data channel
+    dataSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    # Connect to the server's ephemeral data port
+    dataSocket.connect((serverName, dataPort))
+    total_bytes = 0
+    
+    if is_download:
+        # Receiving the file from the server
+        with open(filename, 'wb') as f:
+            while True:
+                data = dataSocket.recv(1024)
+                if not data:
+                    break
+                f.write(data)
+                total_bytes += len(data)
+        print(f"Received {filename}, {total_bytes} bytes transferred")
+    else:
+        # Sending the file to the server
+        with open(filename, 'rb') as f:
+            while (data := f.read(1024)):
+                dataSocket.sendall(data)
+                total_bytes += len(data)
+        print(f"Sent {filename}, {total_bytes} bytes transferred")
+    
+    dataSocket.close()
 
-# Create a TCP socket
-connSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Connect to the server
-connSock.connect((serverAddr, serverPort))
-
-# The number of bytes sent
-numSent = 0
-
-# The file data
-fileData = None
-
-# Keep sending until all is sent
+# Start command loop
 while True:
-	
-	# Read 65536 bytes of data
-	fileData = fileObj.read(65536)
-	
-	# Make sure we did not hit EOF
-	if fileData:
-		
-			
-		# Get the size of the data read
-		# and convert it to string
-		dataSizeStr = str(len(fileData))
-		
-		# Prepend 0's to the size string
-		# until the size is 10 bytes
-		while len(dataSizeStr) < 10:
-			dataSizeStr = "0" + dataSizeStr
-	
-	
-		# Prepend the size of the data to the
-		# file data.
-		fileData = dataSizeStr + fileData	
-		
-		# The number of bytes sent
-		numSent = 0
-		
-		# Send the data!
-		while len(fileData) > numSent:
-			numSent += connSock.send(fileData[numSent:])
-	
-	# The file has been read. We are done
-	else:
-		break
+    command = input("ftp> ").strip()
+    
+    if command == "quit":
+        sendCommand("quit")
+        print("Closing connection.")
+        controlSocket.close()
+        break
 
+    elif command == "ls":
+        response = sendCommand("ls")
+        print("Files on server:")
+        print(response)
 
-print "Sent ", numSent, " bytes."
-	
-# Close the socket and the file
-connSock.close()
-fileObj.close()
+    elif command.startswith("get"):
+        _, filename = command.split(maxsplit=1)
+        response = sendCommand(f"get {filename}")
+        
+        if response.startswith("ERROR"):
+            print(response)
+        else:
+            dataPort = int(response)
+            handleDataChannel(dataPort, is_download=True, filename=filename)
+
+    elif command.startswith("put"):
+        _, filename = command.split(maxsplit=1)
+        
+        if not os.path.exists(filename):
+            print(f"ERROR: File {filename} not found.")
+            continue
+
+        response = sendCommand(f"put {filename}")
+        if response.startswith("ERROR"):
+            print(response)
+        else:
+            dataPort = int(response)
+            handleDataChannel(dataPort, is_download=False, filename=filename)
+
+    else:
+        print("Invalid command. Please use 'ls', 'get <filename>', 'put <filename>', or 'quit'.")
+
+print("Disconnected from the server.")
