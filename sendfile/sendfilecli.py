@@ -1,80 +1,30 @@
-
-# *******************************************************************
-# This file illustrates how to send a file using an
-# application-level protocol where the first 10 bytes
-# of the message from client to server contain the file
-# size and the rest contain the file data.
-# *******************************************************************
+# *****************************************************
+# This file implements a client for sending and receiving
+# files to/from the sendfileserv.py server. The client
+# can upload, download, and list files on the server using cmds.py
+# *****************************************************
 import socket
-import os
 import sys
+from cmds import execute_command
 
-# Command line checks 
-if len(sys.argv) < 2:
-	print "USAGE python " + sys.argv[0] + " <FILE NAME>" 
+# Validate command-line arguments
+if len(sys.argv) != 3:
+    print("Usage: python sendfilecli.py <server machine> <server port>")
+    sys.exit(1)
 
-# Server address
-serverAddr = "localhost"
+# Set server details
+server_name = sys.argv[1]
+control_port = int(sys.argv[2])
 
-# Server port
-serverPort = 1234
+# Connect to the server's control channel
+control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+control_socket.connect((server_name, control_port))
+print(f"Connected to the FTP server at {server_name} on port {control_port}")
 
-# The name of the file
-fileName = sys.argv[1]
-
-# Open the file
-fileObj = open(fileName, "r")
-
-# Create a TCP socket
-connSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Connect to the server
-connSock.connect((serverAddr, serverPort))
-
-# The number of bytes sent
-numSent = 0
-
-# The file data
-fileData = None
-
-# Keep sending until all is sent
+# Start command loop
 while True:
-	
-	# Read 65536 bytes of data
-	fileData = fileObj.read(65536)
-	
-	# Make sure we did not hit EOF
-	if fileData:
-		
-			
-		# Get the size of the data read
-		# and convert it to string
-		dataSizeStr = str(len(fileData))
-		
-		# Prepend 0's to the size string
-		# until the size is 10 bytes
-		while len(dataSizeStr) < 10:
-			dataSizeStr = "0" + dataSizeStr
-	
-	
-		# Prepend the size of the data to the
-		# file data.
-		fileData = dataSizeStr + fileData	
-		
-		# The number of bytes sent
-		numSent = 0
-		
-		# Send the data!
-		while len(fileData) > numSent:
-			numSent += connSock.send(fileData[numSent:])
-	
-	# The file has been read. We are done
-	else:
-		break
+    command = input("ftp> ").strip()
+    if execute_command(control_socket, server_name, command) == "quit":
+        break
 
-
-print "Sent ", numSent, " bytes."
-	
-# Close the socket and the file
-connSock.close()
-fileObj.close()
+print("Disconnected from the server.")

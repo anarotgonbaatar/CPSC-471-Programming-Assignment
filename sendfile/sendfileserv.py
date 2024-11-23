@@ -25,7 +25,7 @@ print( f"FTP server is listening on port {controlPort}" )
 # @param numBytes - the number of bytes to receive
 # @return - the bytes received
 # *************************************************
-def recvAll(sock, numBytes):
+def recvAll( sock, numBytes ):
 	# Receive all bytes from a socket
 	recvBuff = ""
 	tmpBuff = ""
@@ -47,10 +47,10 @@ def recvAll(sock, numBytes):
 		
 # Accept connections forever
 while True:
-	print("Waiting for connections...")
+	print( "Waiting for connections..." )
 	clientSocket, addr = controlSocket.accept()   # Accept connections
-	print("Accepted connection from client: "), addr
-	print("\n")
+	print( "Accepted connection from client: ", addr )
+	print( "\n" )
 
 	while True:
 		command = clientSocket.recv( 1024 ).decode().strip()    # Receive FTP command
