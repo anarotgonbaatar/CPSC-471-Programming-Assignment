@@ -7,7 +7,7 @@ A simplified FTP server and client using socket programming.
 - Anar Otgonbaatar anarotgo@csu.fullerton.edu
 - Ryan Phillips ryanrp@csu.fullerton.edu
 - Jose Gonzalez jgonzam@csu.fullerton.edu
--
+- Jeremy Boyles boylesjeremy@csu.fullerton.edu
 
 ## Language
 

@@ -6,7 +6,8 @@ import socket
 
 def get_ephemeral_port():
     # Create a temporary socket bound to port 0, which will choose an ephemeral port
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_socket:
-        temp_socket.bind(('', 0))  # Bind to port 0 to select an ephemeral port
-        ephemeral_port = temp_socket.getsockname()[1]  # Retrieve the selected ephemeral port
+    temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    temp_socket.bind(('', 0))
+    ephemeral_port = temp_socket.getsockname()[1]
+    temp_socket.close()
     return ephemeral_port
