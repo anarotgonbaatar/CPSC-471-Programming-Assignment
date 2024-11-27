@@ -10,14 +10,14 @@ import os
 from ephemeral import get_ephemeral_port
 
 # Control channel port
-controlPort = 1234
+control_port = 1234
 
 # Create and bind control socket
 control_socket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-control_socket.bind( ( '', controlPort ) )
+control_socket.bind( ( '', control_port ) )
 control_socket.listen(1)    # Listen for client connections
 
-print( f"FTP server is listening on port { controlPort }" )
+print( f"FTP server is listening on port { control_port }" )
 
 # Accept connections forever
 while True:
@@ -34,12 +34,12 @@ while True:
 		print( f"Received command: { command }" )
 		
 		if command == 'ls':
-			# List all files in the directory
 			files = '\n'.join( os.listdir( '.' ) )
 			client_socket.send( files.encode() )
 			
 		elif command.startswith( "get" ):
 			filename = command.split()[1] # extract filename
+			
 			if os.path.exists( filename ):
 				# Generate ephemeral port for the data channel
 				data_port = get_ephemeral_port()
@@ -92,4 +92,3 @@ while True:
 			break
 
 	print( "Waiting for new connection" )
-	
