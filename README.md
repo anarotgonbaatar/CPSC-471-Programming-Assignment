@@ -22,8 +22,8 @@ Python
 - For the first terminal (start the server), navigate to the server folder: cd server
 - To start the server, enter: py sendfileserv.py 1234
 
-- For the second terminal (start the client), navigate to the client folder: cd server
-- To start the client: enter: py sendfilecli.py 127.0.0.1 1234
+- For the second terminal (start the client), navigate to the client folder: cd client
+- To start the client: enter: py sendfilecli.py localhost 1234
 
 - Use the various commands on the client terminal: 
 - fpt> ls (see the files in the folder) 
